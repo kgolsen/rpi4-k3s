@@ -93,7 +93,7 @@ cat k3s-masterkey.pub > authorized_keys
 chmod 644 authorized_keys
 chmod 400 k3s-masterkey.pem
 chmod 700 /home/pi/.ssh
-chown -R pi /home/pi/.ssh
+chown -R pi:pi /home/pi/.ssh
 EOF
 
 echo "Copying SSH masterkeys to local host..."
@@ -123,6 +123,7 @@ set -e
 /usr/local/bin/bootp-server-setup.sh
 curl -sfL https://get.k3s.io | sh -
 sed -i -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+systemctl restart sshd
 chmod -x /etc/rc.local
 EORC
 chmod +x /etc/rc.local
