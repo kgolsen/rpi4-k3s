@@ -40,11 +40,6 @@ if [[ -z $(command -v unzip) ]]; then
   exit 1
 fi
 
-if [[ -z "${1}" ]]; then
-  echo "ERROR: must supply new password for pi user as first argument"
-  exit 1
-fi
-
 RASPBIAN_URL="https://downloads.raspberrypi.org/raspbian_lite_latest"
 
 # Fetch file, unpack Raspbian, get Raspbian image name
@@ -75,13 +70,6 @@ mount -v -o offset="$(echo "${partitions[0]}"|awk '{print $1}')",sizelimit="$(ec
 mount -v -o offset="$(echo "${partitions[1]}"|awk '{print $1}')",sizelimit="$(echo "${partitions[1]}"|awk '{print $2}')" \
   -t ext4 "${RASPBIAN_IMG}" /mnt/raspbian/root &> /dev/null
 
-# Chroot into root partition, change pi user password
-echo "Changing pi user password..."
-cat << EOF | chroot /mnt/raspbian/root &> /dev/null
-echo "pi:${1}" | chpasswd
-exit
-EOF
-
 echo "Configuring rpi settings and enabling ssh..."
 # Add container capabilities to the kernel boot command
 # shellcheck disable=SC2046
@@ -104,6 +92,7 @@ mv id_rsa.pub k3s-masterkey.pub
 cat k3s-masterkey.pub > authorized_keys
 chmod 644 authorized_keys
 chmod 400 k3s-masterkey.pem
+chmod 700 /home/pi/.ssh
 chown -R pi /home/pi/.ssh
 EOF
 
@@ -139,6 +128,9 @@ EORC
 chmod +x /etc/rc.local
 exit
 EOF
+# add ssh pubkey to cloud-init script
+MASTERKEY=$(</var/local/k3s-masterkey.pub)
+sed -i -e "s/SSH-RSA-MASTERKEY/$(echo -n ${MASTERKEY//\//\\\/})/" /mnt/raspbian/root/usr/local/bin/cloud-init-setup.sh
 
 # Unmount and copy new image to local host
 echo "Unmounting and copying image to local host..."
