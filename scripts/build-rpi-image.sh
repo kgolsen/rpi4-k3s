@@ -93,8 +93,22 @@ echo "gpu_mem=16" | cat - /mnt/raspbian/boot/config.txt | tee /mnt/raspbian/boot
 sed -i -e 's/audio=on/audio=off/' /mnt/raspbian/boot/config.txt
 # Enable SSH
 touch /mnt/raspbian/boot/ssh
-# Set hostname for cluster master
-echo "rpi-k3s-master" > /mnt/raspbian/root/etc/hostname
+# chroot to Raspbian and setup SSH
+cat << EOF | chroot /mnt/raspbian/root &> /dev/null
+echo "rpi-k3s-master" > /etc/hostname
+mkdir -p /home/pi/.ssh
+cd /home/pi/.ssh
+ssh-keygen -f id_rsa -t rsa -b 4096 -N '' -m PEM -q
+mv id_rsa k3s-masterkey.pem
+mv id_rsa.pub k3s-masterkey.pub
+cat k3s-masterkey.pub > authorized_keys
+chmod 644 authorized_keys
+chmod 400 k3s-masterkey.pem
+chown -R pi /home/pi/.ssh
+EOF
+
+echo "Copying SSH masterkeys to local host..."
+cp /mnt/raspbian/root/home/pi/.ssh/k3s-masterkey* /var/local/
 
 # chroot to Raspbian and fetch k3sup
 echo "Fetching k3sup..."
@@ -119,6 +133,7 @@ set -e
 /usr/local/bin/cloud-init-setup.sh
 /usr/local/bin/bootp-server-setup.sh
 curl -sfL https://get.k3s.io | sh -
+sed -i -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 chmod -x /etc/rc.local
 EORC
 chmod +x /etc/rc.local
