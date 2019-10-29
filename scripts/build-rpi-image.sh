@@ -4,7 +4,7 @@
 # Date: 18 Oct 2019
 # Author: Kyle Olsen <kyle.g.olsen@gmail.com>
 #
-# Description: this script fetches the latest Raspbian Lite, unpacks, and mounts the images partitions in /mnt.
+# Description: this script fetches the latest Raspbian Lite, unpacks, and mounts the images parts in /mnt.
 #   It then updates the pi users password, adds container capabilities to the boot command, then downloads and installs
 #   k3sup.
 #
@@ -53,28 +53,28 @@ if [[ -z "${RASPBIAN_IMG}" ]]; then
   exit 1
 fi
 
-# Get image partition data, mount partitions
+# Get image partition data, mount parts
 echo "Gathering image partition data..."
-declare -a partitions
+declare -a parts
 IFS=$'\n'; for part in $(fdisk -l "${RASPBIAN_IMG}" | tail -2); do
   partsizes=$(echo "${part}"|awk '{print $2*512,$4*512}');
-  partitions[${#partitions[@]}]="${partsizes}"
+  parts[${#parts[@]}]="${partsizes}"
 done
 
 mkdir -p /mnt/raspbian/boot
 mkdir -p /mnt/raspbian/root
 
 echo "Mounting partitions..."
-mount -v -o offset="$(echo "${partitions[0]}"|awk '{print $1}')",sizelimit="$(echo "${partitions[0]}"|awk '{print $2}')" \
+mount -v -o offset="$(echo "${parts[0]}"|awk '{print $1}')",sizelimit="$(echo "${parts[0]}"|awk '{print $2}')" \
   -t vfat "${RASPBIAN_IMG}" /mnt/raspbian/boot &> /dev/null
-mount -v -o offset="$(echo "${partitions[1]}"|awk '{print $1}')",sizelimit="$(echo "${partitions[1]}"|awk '{print $2}')" \
+mount -v -o offset="$(echo "${parts[1]}"|awk '{print $1}')",sizelimit="$(echo "${parts[1]}"|awk '{print $2}')" \
   -t ext4 "${RASPBIAN_IMG}" /mnt/raspbian/root &> /dev/null
 
 echo "Configuring rpi settings and enabling ssh..."
 # Add container capabilities to the kernel boot command
-# shellcheck disable=SC2046
-echo "cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory" | \
-  tee -a /mnt/raspbian/boot/cmdline.txt &> /dev/null
+CMDLINE=$(cat /mnt/raspbian/boot/cmdline.txt)
+echo "${CMDLINE} cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory" | \
+  tee /mnt/raspbian/boot/cmdline.txt &> /dev/null
 # Reduce GPU memory to the minimum allowed, as we are running headless
 echo "gpu_mem=16" | cat - /mnt/raspbian/boot/config.txt | tee /mnt/raspbian/boot/config.txt &> /dev/null
 # Don't load snd_bcm2835, as we are running headless
@@ -84,11 +84,11 @@ touch /mnt/raspbian/boot/ssh
 # chroot to Raspbian and setup SSH
 cat << EOF | chroot /mnt/raspbian/root &> /dev/null
 echo "rpi-k3s-master" > /etc/hostname
+sed -i -e 's/raspberrypi/rpi-k3s-master/' /etc/hosts
 mkdir -p /home/pi/.ssh
 cd /home/pi/.ssh
-ssh-keygen -f id_rsa -t rsa -b 4096 -N '' -m PEM -q
-mv id_rsa k3s-masterkey.pem
-mv id_rsa.pub k3s-masterkey.pub
+ssh-keygen -f k3s-masterkey -t rsa -b 4096 -N '' -m PEM -q
+mv k3s-masterkey k3s-masterkey.pem
 cat k3s-masterkey.pub > authorized_keys
 chmod 644 authorized_keys
 chmod 400 k3s-masterkey.pem
@@ -109,22 +109,25 @@ exit
 EOF
 
 # chroot to Raspbian, setup rc.local to install cloud-init, install k3s, and prepare PXE boot server on first boot
+# NOTE: k3s 0.10.0 is currently broken on Raspbian, so we will explicitly specify v0.9.1 instead.
 echo "Creating initial setup tasks..."
 cat << EOF | chroot /mnt/raspbian/root &> /dev/null
 wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi-cloud-init/master/cloud-init-setup.sh \
   -O /usr/local/bin/cloud-init-setup.sh
-wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi-cloud-init/master/bootp-server-setup.sh \
+wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi4-k3s/master/bootp-server-setup.sh \
   -O /usr/local/bin/bootp-server-setup.sh
 chmod +x /usr/local/bin/*.sh
 cat << EORC | tee /etc/rc.local &> /dev/null
-#!/usr/bin/env bash
-set -e
+#!/bin/bash
+apt-get update
+apt-get upgrade -y
 /usr/local/bin/cloud-init-setup.sh
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v0.9.1 sh -
 /usr/local/bin/bootp-server-setup.sh
-curl -sfL https://get.k3s.io | sh -
 sed -i -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-systemctl restart sshd
+systemctl disable dphys-swapfile.service
 chmod -x /etc/rc.local
+systemctl reboot
 EORC
 chmod +x /etc/rc.local
 exit
@@ -137,4 +140,4 @@ sed -i -e "s/SSH-RSA-MASTERKEY/$(echo -n ${MASTERKEY//\//\\\/})/" /mnt/raspbian/
 echo "Unmounting and copying image to local host..."
 umount /mnt/raspbian/boot
 umount /mnt/raspbian/root
-cp "${RASPBIAN_IMG}" /var/local/
+cp "${RASPBIAN_IMG}" /var/local/rpi-k3s-master.img
