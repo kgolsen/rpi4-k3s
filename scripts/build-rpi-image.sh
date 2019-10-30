@@ -109,12 +109,11 @@ exit
 EOF
 
 # chroot to Raspbian, setup rc.local to install cloud-init, install k3s, and prepare PXE boot server on first boot
-# NOTE: k3s 0.10.0 is currently broken on Raspbian, so we will explicitly specify v0.9.1 instead.
 echo "Creating initial setup tasks..."
 cat << EOF | chroot /mnt/raspbian/root &> /dev/null
 wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi-cloud-init/master/cloud-init-setup.sh \
   -O /usr/local/bin/cloud-init-setup.sh
-wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi4-k3s/master/bootp-server-setup.sh \
+wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi4-k3s/master/scripts/bootp-server-setup.sh \
   -O /usr/local/bin/bootp-server-setup.sh
 chmod +x /usr/local/bin/*.sh
 cat << EORC | tee /etc/rc.local &> /dev/null
@@ -122,7 +121,7 @@ cat << EORC | tee /etc/rc.local &> /dev/null
 apt-get update
 apt-get upgrade -y
 /usr/local/bin/cloud-init-setup.sh
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v0.9.1 sh -
+curl -sfL https://get.k3s.io | sh -
 /usr/local/bin/bootp-server-setup.sh
 sed -i -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 systemctl disable dphys-swapfile.service
