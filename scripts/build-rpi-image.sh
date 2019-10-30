@@ -122,6 +122,7 @@ apt-get update
 apt-get upgrade -y
 /usr/local/bin/cloud-init-setup.sh
 curl -sfL https://get.k3s.io | sh -
+chmod +r /etc/rancher/k3s/k3s.yaml
 /usr/local/bin/bootp-server-setup.sh
 sed -i -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 systemctl disable dphys-swapfile.service
