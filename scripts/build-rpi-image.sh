@@ -25,20 +25,12 @@ echo "Installing utilities..."
 apt-get update &> /dev/null
 apt install -y wget unzip curl &> /dev/null
 
-if [[ -z $(command -v wget) ]]; then
-  echo "ERROR: wget not found"
-  exit 1
-fi
-
-if [[ -z $(command -v curl) ]]; then
-  echo "ERROR: curl not found"
-  exit 1
-fi
-
-if [[ -z $(command -v unzip) ]]; then
-  echo "ERROR: unzip not found"
-  exit 1
-fi
+for cmd in wget curl unzip; do
+  if [[ -z $(command -v "${cmd}") ]]; then
+    echo "ERROR: ${cmd} not found"
+    exit 1
+  fi
+done
 
 RASPBIAN_URL="https://downloads.raspberrypi.org/raspbian_lite_latest"
 
@@ -102,7 +94,7 @@ cp /mnt/raspbian/root/home/pi/.ssh/k3s-masterkey* /var/local/
 # chroot to Raspbian and fetch k3sup
 echo "Fetching k3sup..."
 cat << EOF | chroot /mnt/raspbian/root &> /dev/null
-wget -q --compression=auto https://github.com/alexellis/k3sup/releases/download/0.4.3/k3sup-armhf \
+wget -q --compression=auto https://github.com/alexellis/k3sup/releases/download/0.9.2/k3sup-armhf \
   -O /usr/local/bin/k3sup
 chmod +x /usr/local/bin/k3sup
 exit
