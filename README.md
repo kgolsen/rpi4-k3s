@@ -9,6 +9,11 @@ Does a few things.
 3. Sets up cloud-init installation for first boot.
 4. Sets up installation and configuration of BOOTP server for first boot.
 
-Eventually, PXE boot images will be served to new machines joining the cluster that
-include cloud-init config for automatic host naming, cluster joining, etc. Eventually.
+~~Eventually, PXE boot images will be served to new machines joining the cluster that
+include cloud-init config for automatic host naming, cluster joining, etc.~~ Eventually.
 I'm not made of free time and nobody's paying me for this.
+
+2020-05-12: Now that I'm working on the PXE boot, it's important to note that
+the cluster IP space is set (and small). I'm building this cluster behind a Mikrotik
+CRS112-8P-4S-IN, so it's important the cluster is sitting behind a
+programmable router or network issues will ensue.

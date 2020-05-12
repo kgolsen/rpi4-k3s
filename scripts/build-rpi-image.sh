@@ -114,7 +114,7 @@ apt-get update
 apt-get upgrade -y
 apt-get full-upgrade -y
 /usr/local/bin/cloud-init-setup.sh
-curl -sfL https://get.k3s.io | sh -
+/usr/local/bin/k3sup install --local
 chmod +r /etc/rancher/k3s/k3s.yaml
 /usr/local/bin/bootp-server-setup.sh
 sed -i -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
