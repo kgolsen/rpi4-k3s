@@ -112,6 +112,7 @@ cat << EORC | tee /etc/rc.local &> /dev/null
 #!/bin/bash
 apt-get update
 apt-get upgrade -y
+apt-get full-upgrade -y
 /usr/local/bin/cloud-init-setup.sh
 curl -sfL https://get.k3s.io | sh -
 chmod +r /etc/rancher/k3s/k3s.yaml
