@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
-# File: scripts/build-rpi-image.sh
+# File: scripts/build-k3sup-image.sh
 # Date: 18 Oct 2019
 # Author: Kyle Olsen <kyle.g.olsen@gmail.com>
 #
-# Description: this script fetches the latest Raspbian Lite, unpacks, and mounts the images parts in /mnt.
-#   It then updates the pi users password, adds container capabilities to the boot command, then downloads and installs
-#   k3sup.
+# Description: this script builds a base image with k3sup utilizing a common RSA key for the pi user to simplify
+#   later joining/creating a k3s cluster.
 #
 # IMPORTANT: this script is intended to be run in a debian:buster Docker container with a local directory bind mounted
 #   to /var/local.
@@ -38,10 +37,13 @@ done
 
 RASPBIAN_URL="https://downloads.raspberrypi.org/raspbian_lite_latest"
 
-# Fetch file, unpack Raspbian, get Raspbian image name
-echo "Fetching and unpacking Raspbian..."
-wget -q --compression=auto "${RASPBIAN_URL}" -O /tmp/raspbian.zip
-unzip -d /tmp /tmp/raspbian.zip &> /dev/null && rm /tmp/raspbian.zip
+# Fetch file (if necessary), unpack Raspbian, get Raspbian image name
+if [[ ! -f /var/local/raspbian.zip ]]; then
+  echo "Fetching Raspbian..."
+  wget -q --compression=auto "${RASPBIAN_URL}" -O /var/local/raspbian.zip
+fi
+echo "Unpacking Raspbian..."
+unzip -d /tmp /var/local/raspbian.zip &> /dev/null && rm /var/local/raspbian.zip
 RASPBIAN_IMG=$(find /tmp -name '*raspbian-*-lite.img' -type f)
 
 if [[ -z "${RASPBIAN_IMG}" ]]; then
@@ -79,8 +81,8 @@ sed -i -e 's/audio=on/audio=off/' /mnt/raspbian/boot/config.txt
 touch /mnt/raspbian/boot/ssh
 # chroot to Raspbian and setup SSH
 cat << EOF | chroot /mnt/raspbian/root &> /dev/null
-echo "rpi-k3s-master" > /etc/hostname
-sed -i -e 's/raspberrypi/rpi-k3s-master/' /etc/hosts
+echo "k3s-base" > /etc/hostname
+sed -i -e 's/raspberrypi/k3s-base/' /etc/hosts
 mkdir -p /home/pi/.ssh
 cd /home/pi/.ssh
 ssh-keygen -f k3s-masterkey -t rsa -b 4096 -N '' -m PEM -q
@@ -95,7 +97,7 @@ EOF
 echo "Copying SSH masterkeys to local host..."
 cp /mnt/raspbian/root/home/pi/.ssh/k3s-masterkey* /var/local/
 
-# chroot to Raspbian, setup rc.local to install cloud-init, install k3sup + k3s, and prepare PXE boot server on first boot
+# chroot to Raspbian, setup rc.local to install k3sup
 echo "Creating initial setup tasks..."
 cat << EOF | chroot /mnt/raspbian/root &> /dev/null
 cat << EORC | tee /etc/rc.local &> /dev/null
@@ -105,21 +107,18 @@ apt-get update
 apt-get upgrade -y
 apt-get full-upgrade -y
 
-# pull k3sup installer and bootp setup scripts
+# pull k3sup installer and run
 wget -q --compression=auto https://get.k3sup.dev -O /usr/local/bin/install-k3sup.sh
-wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi4-k3s/master/scripts/bootp-server-setup.sh \
-  -O /usr/local/bin/bootp-server-setup.sh
 chmod +x /usr/local/bin/*.sh
-
-# install k3sup, run to install k3s locally as a cluster master
 /usr/local/bin/install-k3sup.sh && rm /usr/local/bin/install-k3sup.sh
-/usr/local/bin/k3sup install --local --ip 10.100.100.100 --cluster
-chmod +r /etc/rancher/k3s/k3s.yaml
-/usr/local/bin/bootp-server-setup.sh
+
+# disable password auth for SSH
 sed -i -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+
+# disable swapfile
 systemctl disable dphys-swapfile.service
+systemctl stop dphys-swapfile.service
 chmod -x /etc/rc.local
-systemctl reboot
 EORC
 chmod +x /etc/rc.local
 exit
@@ -129,4 +128,4 @@ EOF
 echo "Unmounting and copying image to local host..."
 umount /mnt/raspbian/boot
 umount /mnt/raspbian/root
-cp "${RASPBIAN_IMG}" /var/local/rpi-k3s-master.img
+cp "${RASPBIAN_IMG}" /var/local/base-k3sup-image.img
