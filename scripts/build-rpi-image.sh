@@ -23,9 +23,9 @@ fi
 # Get necessary utilities
 echo "Installing utilities..."
 apt-get update &> /dev/null
-apt install -y wget unzip curl &> /dev/null
+apt install -y wget unzip &> /dev/null
 
-for cmd in wget curl unzip; do
+for cmd in wget unzip; do
   if [[ -z $(command -v "${cmd}") ]]; then
     echo "ERROR: ${cmd} not found"
     exit 1
