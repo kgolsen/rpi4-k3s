@@ -7,6 +7,10 @@
 # Description: this script runs at the k3s master's first boot to install and configure a TFTP BOOTP server for cluster
 #   slaves' PXE boot.
 
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 # Fail on any non-0 command exit
 set -e
 
@@ -33,21 +37,8 @@ echo "/tftp/k3s/client *(rw,sync,no_subtree_check,no_root_squash)" | tee -a /etc
 echo "/tftp/boot *(rw,sync,no_subtree_check,no_root_squash)" | tee -a /etc/exports
 
 # Turn off DHCP for eth0
-echo << EOF | tee /etc/systemd/network/10-eth0.netdev
-[Match]
-Name=eth0
-[Network]
-DHCP=no
-EOF
-
-# Set static IP for eth0
-echo << EOF | tee /etc/systemd/network/11-eth0.netdev
-[Match]
-Name=eth0
-
-[Network]
-Address=10.100.100.100/32
-Gateway=10.100.100.1
+echo << EOF | tee /etc/network/interface
+TODO: Fix, we're not using NetworkManager
 EOF
 
 # Stop dhcpd and disable

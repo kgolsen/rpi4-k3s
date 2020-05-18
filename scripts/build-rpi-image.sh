@@ -11,6 +11,10 @@
 # IMPORTANT: this script is intended to be run in a debian:buster Docker container with a local directory bind mounted
 #   to /var/local.
 
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 # Fail on any non-0 command exit
 set -e
 
@@ -95,8 +99,6 @@ cp /mnt/raspbian/root/home/pi/.ssh/k3s-masterkey* /var/local/
 echo "Creating initial setup tasks..."
 cat << EOF | chroot /mnt/raspbian/root &> /dev/null
 wget -q --compression=auto https://get.k3sup.dev -O /usr/local/bin/install-k3sup.sh
-wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi-cloud-init/master/cloud-init-setup.sh \
-  -O /usr/local/bin/cloud-init-setup.sh
 wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi4-k3s/master/scripts/bootp-server-setup.sh \
   -O /usr/local/bin/bootp-server-setup.sh
 chmod +x /usr/local/bin/*.sh
@@ -106,7 +108,6 @@ apt-get update
 apt-get upgrade -y
 apt-get full-upgrade -y
 /usr/local/bin/install-k3sup.sh && rm /usr/local/bin/install-k3sup.sh
-/usr/local/bin/cloud-init-setup.sh
 /usr/local/bin/k3sup install --local
 chmod +r /etc/rancher/k3s/k3s.yaml
 /usr/local/bin/bootp-server-setup.sh
@@ -118,9 +119,6 @@ EORC
 chmod +x /etc/rc.local
 exit
 EOF
-# add ssh pubkey to cloud-init script
-MASTERKEY=$(</var/local/k3s-masterkey.pub)
-sed -i -e "s/SSH-RSA-MASTERKEY/$(echo -n ${MASTERKEY//\//\\\/})/" /mnt/raspbian/root/usr/local/bin/cloud-init-setup.sh
 
 # Unmount and copy new image to local host
 echo "Unmounting and copying image to local host..."
