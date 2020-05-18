@@ -23,9 +23,9 @@ fi
 # Get necessary utilities
 echo "Installing utilities..."
 apt-get update &> /dev/null
-apt install -y wget unzip &> /dev/null
+apt install -y wget curl unzip &> /dev/null
 
-for cmd in wget unzip; do
+for cmd in wget curl unzip; do
   if [[ -z $(command -v "${cmd}") ]]; then
     echo "ERROR: ${cmd} not found"
     exit 1
@@ -91,18 +91,10 @@ EOF
 echo "Copying SSH masterkeys to local host..."
 cp /mnt/raspbian/root/home/pi/.ssh/k3s-masterkey* /var/local/
 
-# chroot to Raspbian and fetch k3sup
-echo "Fetching k3sup..."
-cat << EOF | chroot /mnt/raspbian/root &> /dev/null
-wget -q --compression=auto https://github.com/alexellis/k3sup/releases/download/0.9.2/k3sup-armhf \
-  -O /usr/local/bin/k3sup
-chmod +x /usr/local/bin/k3sup
-exit
-EOF
-
-# chroot to Raspbian, setup rc.local to install cloud-init, install k3s, and prepare PXE boot server on first boot
+# chroot to Raspbian, setup rc.local to install cloud-init, install k3sup + k3s, and prepare PXE boot server on first boot
 echo "Creating initial setup tasks..."
 cat << EOF | chroot /mnt/raspbian/root &> /dev/null
+wget -q --compression=auto https://get.k3sup.dev -O /usr/local/bin/install-k3sup.sh
 wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi-cloud-init/master/cloud-init-setup.sh \
   -O /usr/local/bin/cloud-init-setup.sh
 wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi4-k3s/master/scripts/bootp-server-setup.sh \
@@ -113,6 +105,7 @@ cat << EORC | tee /etc/rc.local &> /dev/null
 apt-get update
 apt-get upgrade -y
 apt-get full-upgrade -y
+/usr/local/bin/install-k3sup.sh && rm /usr/local/bin/install-k3sup.sh
 /usr/local/bin/cloud-init-setup.sh
 /usr/local/bin/k3sup install --local
 chmod +r /etc/rancher/k3s/k3s.yaml
