@@ -98,17 +98,22 @@ cp /mnt/raspbian/root/home/pi/.ssh/k3s-masterkey* /var/local/
 # chroot to Raspbian, setup rc.local to install cloud-init, install k3sup + k3s, and prepare PXE boot server on first boot
 echo "Creating initial setup tasks..."
 cat << EOF | chroot /mnt/raspbian/root &> /dev/null
+cat << EORC | tee /etc/rc.local &> /dev/null
+#!/bin/bash
+# update and upgrade everything
+apt-get update
+apt-get upgrade -y
+apt-get full-upgrade -y
+
+# pull k3sup installer and bootp setup scripts
 wget -q --compression=auto https://get.k3sup.dev -O /usr/local/bin/install-k3sup.sh
 wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi4-k3s/master/scripts/bootp-server-setup.sh \
   -O /usr/local/bin/bootp-server-setup.sh
 chmod +x /usr/local/bin/*.sh
-cat << EORC | tee /etc/rc.local &> /dev/null
-#!/bin/bash
-apt-get update
-apt-get upgrade -y
-apt-get full-upgrade -y
+
+# install k3sup, run to install k3s locally as a cluster master
 /usr/local/bin/install-k3sup.sh && rm /usr/local/bin/install-k3sup.sh
-/usr/local/bin/k3sup install --local
+/usr/local/bin/k3sup install --local --ip 10.100.100.100 --cluster
 chmod +r /etc/rancher/k3s/k3s.yaml
 /usr/local/bin/bootp-server-setup.sh
 sed -i -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config

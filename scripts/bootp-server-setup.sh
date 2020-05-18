@@ -82,7 +82,7 @@ proc       /proc        proc     defaults    0    0
 10.100.100.100:/tftp/boot /boot nfs defaults,vers=3 0 0
 EOFS
 
-# Create rc.local to reconfigure SSH and hostname on first boot
+# Create rc.local to reconfigure SSH and hostname on first boot, then join cluster
 cat << EORC | tee /etc/rc.local
 #!/bin/bash
 
@@ -96,5 +96,16 @@ echo "${HOSTN}" > /etc/hostname
 sed -i -e "s/rpi-k3s-master/${HOSTN}/" /etc/hosts
 hostname "${HOSTN}"
 
+# Determine if this is supposed to be a master node (i.e. is a 4GB rpi4)
+# ...look, I know this is dumb, but I have three 4GB rpi4s for the control plane and 5 2GB rpi4s for workers.
+# Expediency is winning over correctness for now. So sue me.
+SBC_MEM=$(free -m | grep Mem | awk '{ print $2 }')
+if (( SBC_MEM == 3956 )); then
+  # master
+  echo "I'm a big boy!" > /tmp/msg
+else
+  # worker
+  echo "I'm a little boy!" > /tmp/msg
+fi
 EORC
 EOF
