@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# File: scripts/build-master-image.sh
+# File: scripts/build-k3s-master-image.sh
 # Date: 18 Oct 2019
 # Author: Kyle Olsen <kyle.g.olsen@gmail.com>
 #
@@ -22,8 +22,8 @@ if (( EUID != 0 )); then
   exit 1
 fi
 
-if [[ -f /var/local/base-k3sup-image.img ]]; then
-  cp /var/local/base-k3sup-image.img /tmp/k3s-base.img
+if [[ -f /var/local/base-k3s-image.img ]]; then
+  cp /var/local/base-k3s-image.img /tmp/k3s-base.img
   K3S_IMG="/tmp/k3s-base.img"
 fi
 

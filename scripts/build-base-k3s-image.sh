@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# File: scripts/build-k3sup-image.sh
+# File: scripts/build-base-k3s-image.sh
 # Date: 18 Oct 2019
 # Author: Kyle Olsen <kyle.g.olsen@gmail.com>
 #
@@ -59,8 +59,7 @@ IFS=$'\n'; for part in $(fdisk -l "${RASPBIAN_IMG}" | tail -2); do
   parts[${#parts[@]}]="${partsizes}"
 done
 
-mkdir -p /mnt/raspbian/boot
-mkdir -p /mnt/raspbian/root
+mkdir -p /mnt/raspbian/{boot,root}
 
 echo "Mounting partitions..."
 mount -v -o offset="$(echo "${parts[0]}"|awk '{print $1}')",sizelimit="$(echo "${parts[0]}"|awk '{print $2}')" \
@@ -128,4 +127,4 @@ EOF
 echo "Unmounting and copying image to local host..."
 umount /mnt/raspbian/boot
 umount /mnt/raspbian/root
-cp "${RASPBIAN_IMG}" /var/local/base-k3sup-image.img
+cp "${RASPBIAN_IMG}" /var/local/base-k3s-image.img
