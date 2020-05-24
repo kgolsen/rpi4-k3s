@@ -42,7 +42,7 @@ p
 w
 EOF
 
-# Setup loopback FS, create filesystems and mountpoints, mount
+# Get partition offsets and sizes
 declare -a parts
 IFS=$'\n'; for part in $(fdisk -l "${IMG_FILE}" | tail -2); do
   partsizes=$(echo "${part}"|awk '{print $2*512,$4*512}');
@@ -51,20 +51,31 @@ done
 
 mkdir -p /mnt/raspbian/{boot,root}
 
+# Create filesystems on image partitions
+LO=$(losetup -f --show -o "$(echo "${parts[0]}"|awk '{print $1}')" --size "$(echo "${parts[0]}"|awk '{print $2}')" "${IMG_FILE}")
+mkfs.vfat "${LO}"
+losetup -D
+LO=$(losetup -f --show -o "$(echo "${parts[1]}"|awk '{print $1}')" --size "$(echo "${parts[1]}"|awk '{print $2}')" "${IMG_FILE}")
+mkfs.ext4 "${LO}"
+losetup -D
+
+# Mount image partitions
+BOOT="/mnt/raspbian/boot"
+ROOT="/mnt/raspbian/root"
 mount -v -o offset="$(echo "${parts[0]}"|awk '{print $1}')",sizelimit="$(echo "${parts[0]}"|awk '{print $2}')" \
-  -t vfat "${IMG_FILE}" /mnt/raspbian/boot
+  -t vfat "${IMG_FILE}" "${BOOT}"
 mount -v -o offset="$(echo "${parts[1]}"|awk '{print $1}')",sizelimit="$(echo "${parts[1]}"|awk '{print $2}')" \
-  -t ext4 "${IMG_FILE}" /mnt/raspbian/root
+  -t ext4 "${IMG_FILE}" "${ROOT}"
 
 # Put boot files into place
 git clone --depth 1 git://github.com/raspberrypi/firmware.git /tmp/firmware
-mv /tmp/firmware/boot/* /mnt/raspbian/boot/
-touch /mnt/raspbian/boot/ssh
+mv /tmp/firmware/boot/* "${BOOT}"
+touch "${BOOT}/ssh"
 
 # Bootstrap the Raspbian root
-debootstrap --no-check-gpg --foreign --arch=armhf buster /mnt/raspbian/root/ http://archive.raspbian.org/raspbian
-cp /usr/bin/qemu-arm-static /mnt/raspbian/root/usr/bin/
-mount -o remount -t proc /proc /mnt/raspbian/root/proc/
-mount -o remount -t sysfs /sys /mnt/raspbian/root/sys/
-mount -o remount,bind /dev /mnt/raspbian/root/dev/
-chroot /mnt/raspbian/root /debootstrap/debootstrap --second-stage
+debootstrap --no-check-gpg --foreign --arch=armhf buster "${ROOT}" http://archive.raspbian.org/raspbian
+cp /usr/bin/qemu-arm-static "${ROOT}/usr/bin/"
+mount -o remount -t proc /proc "${ROOT}/proc/"
+mount -o remount -t sysfs /sys "${ROOT}/sys/"
+mount -o remount,bind /dev "${ROOT}/dev/"
+chroot "${ROOT}" /debootstrap/debootstrap --second-stage
