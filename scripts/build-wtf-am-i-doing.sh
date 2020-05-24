@@ -76,6 +76,4 @@ touch "${BOOT}/ssh"
 debootstrap --no-check-gpg --foreign --arch=armhf buster "${ROOT}" http://archive.raspbian.org/raspbian
 cp /usr/bin/qemu-arm-static "${ROOT}/usr/bin/"
 mount -o remount -t proc /proc "${ROOT}/proc/"
-mount -o remount -t sysfs /sys "${ROOT}/sys/"
-mount -o remount,bind /dev "${ROOT}/dev/"
 chroot "${ROOT}" /debootstrap/debootstrap --second-stage
