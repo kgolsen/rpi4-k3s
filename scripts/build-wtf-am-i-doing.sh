@@ -71,24 +71,48 @@ mount -v -o offset="$(echo "${parts[1]}"|awk '{print $1}')",sizelimit="$(echo "$
 git clone --depth 1 git://github.com/raspberrypi/firmware.git /tmp/firmware
 mv /tmp/firmware/boot/* "${BOOT}"
 touch "${BOOT}/ssh"
-# Add container capabilities to the kernel boot command
-CMDLINE=$(cat "${BOOT}/cmdline.txt")
+CMDLINE=console="serial0,115200 console=tty1 root=PARTUUID=738a4d67-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet init=/usr/lib/raspi-config/init_resize.sh"
 echo "${CMDLINE} cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory" | tee "${BOOT}/cmdline.txt"
-# Reduce GPU memory to the minimum allowed, as we are running headless
-echo "gpu_mem=16" | cat - "${BOOT}/config.txt" | tee "${BOOT}/config.txt"
-# Don't load snd_bcm2835, as we are running headless
-sed -i -e 's/audio=on/audio=off/' "${BOOT}/config.txt"
+
+# Generate config.txt
+cat << EOF | tee "${BOOT}/config.txt"
+gpu_mem=16
+dtparam=audio=off
+ignore_lcd=1
+disable_splash=1
+
+[pi4]
+# Might not be necessary
+dtoverlay=vc4-fkms-v3d
+max_framebuffers=2
+EOF
 
 # Bootstrap the Raspbian root
-debootstrap --no-check-gpg --foreign --arch=armhf buster "${ROOT}" http://archive.raspbian.org/raspbian
+debootstrap --no-check-gpg --variant=minbase --foreign --arch=armhf buster "${ROOT}" http://archive.raspbian.org/raspbian
 cp /usr/bin/qemu-arm-static "${ROOT}/usr/bin/"
 mount -o remount -t proc /proc "${ROOT}/proc/"
 chroot "${ROOT}" /debootstrap/debootstrap --second-stage
 
 # chroot to Raspbian and setup SSH
-cat << EOF | chroot "${ROOT}"
+cat << EOF | chroot "${ROOT}" /usr/bin/qemu-arm-static /bin/bash
+# Install OpenSSH
+apt install -y openssh-server openssh-client openssh-blacklist openssh-blacklist-extra
+
+# Setup hostname and hosts file
 echo "k3s-base" > /etc/hostname
-sed -i -e 's/raspberrypi/k3s-base/' /etc/hosts
+cat << EEOF | tee /etc/hosts
+127.0.0.1 localhost
+127.0.1.1 k3s-base
+
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts
+EEOF
+
+# Setup pi user's RSA keys
 mkdir -p /home/pi/.ssh
 cd /home/pi/.ssh
 ssh-keygen -f k3s-masterkey -t rsa -b 4096 -N '' -m PEM -q
@@ -98,14 +122,15 @@ chmod 644 authorized_keys
 chmod 400 k3s-masterkey.pem
 chmod 700 /home/pi/.ssh
 chown -R pi:pi /home/pi/.ssh
+
 EOF
 cp "${ROOT}/home/pi/.ssh/k3s-masterkey*" /var/local/
 
 # chroot to Raspbian, setup rc.local to install k3sup
-cat << EOF | chroot "${ROOT}"
+cat << EOF | chroot "${ROOT}" /usr/bin/qemu-arm-static /bin/bash
 cat << EORC | tee /etc/rc.local &> /dev/null
 #!/bin/bash
-# update and upgrade everything
+# update and upgrade everything (no effect if booted shortly after image creation)
 apt-get update
 apt-get upgrade -y
 apt-get full-upgrade -y
@@ -128,6 +153,6 @@ exit
 EOF
 
 # Unmount and copy image to volume
-umount "${BOOT}"
-umount "${ROOT}"
-cp "${IMG_FILE}" /var/local/
+#umount "${BOOT}"
+#umount "${ROOT}"
+#cp "${IMG_FILE}" /var/local/

@@ -8,4 +8,4 @@ RUN apt-get update && apt install -y debootstrap kpartx qemu-user-static xz-util
 
 COPY ./scripts/build-wtf-am-i-doing.sh .
 
-CMD ["bash", "build-wtf-am-i-doing.sh"]
+CMD ["bash"]
