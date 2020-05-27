@@ -97,7 +97,7 @@ sed -i -e "s/rpi-k3s-master/${HOSTN}/" /etc/hosts
 hostname "${HOSTN}"
 
 # Determine if this is supposed to be a master node (i.e. is a 4GB rpi4)
-# ...look, I know this is dumb, but I have three 4GB rpi4s for the control plane and 5 2GB rpi4s for workers.
+# ...look, I know this is dumb, but I have three 4GB rpi4s for the control plane and 4 2GB rpi4s for workers.
 # Expediency is winning over correctness for now. So sue me.
 SBC_MEM=$(free -m | grep Mem | awk '{ print $2 }')
 if (( SBC_MEM == 3956 )); then
