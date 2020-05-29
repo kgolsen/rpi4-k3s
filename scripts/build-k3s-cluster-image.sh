@@ -70,7 +70,7 @@ mount -v -o offset="$(echo "${parts[1]}"|awk '{print $1}')",sizelimit="$(echo "$
 git clone --depth 1 git://github.com/raspberrypi/firmware.git /tmp/firmware
 mv /tmp/firmware/boot/* "${BOOT}"
 touch "${BOOT}/ssh"
-CMDLINE=console="serial0,115200 console=tty1 root=PARTUUID=738a4d67-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet init=/usr/lib/raspi-config/init_resize.sh"
+CMDLINE=console="serial0,115200 console=tty1 root=PARTUUID=738a4d67-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet"
 echo "${CMDLINE} cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory" | tee "${BOOT}/cmdline.txt"
 
 # Generate config.txt
@@ -95,7 +95,7 @@ chroot "${ROOT}" /debootstrap/debootstrap --second-stage
 # chroot to Raspbian and setup SSH
 cat << EOF | chroot "${ROOT}" /usr/bin/qemu-arm-static /bin/bash
 # Install OpenSSH and wget
-apt install -y openssh-server openssh-client openssh-blacklist openssh-blacklist-extra wget
+apt-get install -y openssh-server openssh-client openssh-blacklist openssh-blacklist-extra wget
 
 # Setup hostname and hosts file
 echo "k3s-base" > /etc/hostname
@@ -168,7 +168,14 @@ EOF
 cp "${ROOT}/home/k3s/.ssh/k3s-masterkey.pem" /var/local/
 cp "${ROOT}/home/k3s/.ssh/k3s-masterkey.pub" /var/local/
 
-# Unmount and copy image to volume
+# Unmount and shrink image
 umount "${BOOT}"
 umount "${ROOT}"
+
+MIN_IMG_FILE="${IMG_FILE:0:-4}-shrunk.img"
+wget https://raw.githubusercontent.com/Drewsif/PiShrink/master/pishrink.sh -O pishrink.sh
+/bin/bash pishrink.sh -p "${IMG_FILE}" "${MIN_IMG_FILE}"
+
+# Copy raw and shrunk images to volume
 cp "${IMG_FILE}" /var/local/
+cp "${MIN_IMG_FILE}" /var/local/
