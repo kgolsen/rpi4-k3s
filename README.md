@@ -21,6 +21,9 @@ Does a few things.
 ###### Option 2
 1. `docker run --rm --privileged -v <some_dir>:/var/local kgolsen/rpi4-k3s:latest`
 
+###### Note:
+On Linux hosts, you may have to add `--cap-add=CAP_MKNOD` to allow creation of loopback devices in the container.
+
 ###### Continue...
 
 3. You now have an image, `k3s-base-image.img`, burnable to MicroSD with something like Etcher.

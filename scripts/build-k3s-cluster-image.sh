@@ -87,10 +87,8 @@ max_framebuffers=2
 EOF
 
 # Bootstrap the Raspbian root
-debootstrap --no-check-gpg --variant=minbase --foreign --arch=armhf buster "${ROOT}" http://archive.raspbian.org/raspbian
+qemu-debootstrap --no-check-gpg --variant=minbase --arch=armhf buster "${ROOT}" http://archive.raspbian.org/raspbian
 cp /usr/bin/qemu-arm-static "${ROOT}/usr/bin/"
-mount -o remount -t proc /proc "${ROOT}/proc/"
-chroot "${ROOT}" /debootstrap/debootstrap --second-stage
 
 # chroot to Raspbian and setup SSH
 cat << EOF | chroot "${ROOT}" /usr/bin/qemu-arm-static /bin/bash
@@ -148,8 +146,8 @@ systemctl disable dphys-swapfile.service
 systemctl stop dphys-swapfile.service
 
 # Change master hostname
-echo "rpi-k3s-master" > /etc/hostname
-sed -i -e 's/k3s-base/rpi-k3s-master/' /etc/hosts
+echo "rpi-k3s-origin" > /etc/hostname
+sed -i -e 's/k3s-base/rpi-k3s-origin/' /etc/hosts
 
 # Get and run bootp setup script
 wget -q --compression=auto https://raw.githubusercontent.com/kgolsen/rpi4-k3s/master/scripts/bootp-server-setup.sh \

@@ -20,13 +20,19 @@ if (( EUID != 0 )); then
   exit 1
 fi
 
-# Install kernel NFS server, rsync
-apt-get install -y nfs-kernel-server rsync dnsmasq
+# Mask rpi-eeprom to prevent a future firmware update from disabling PXE
+systemctl mask rpi-eeprom-update
+
+# Install rsync
+apt-get install -y rsync
 
 # Create directory structure and copy FS
 mkdir -p /tftp/k3s/node
 mkdir /tftp/boot
 rsync -xa --exclude /tftp / /tftp/k3s/node
+
+# Install service for PXE (done after rsync so clients don't have PXE-serving services installed
+apt-get install -y nfs-kernel-server dnsmasq rpcbind
 
 # Setup TFTP boot
 chmod 777 /tftp/boot
@@ -53,7 +59,7 @@ dhcp-range=10.100.100.10,10.100.100.20,12h
 log-dhcp
 enable-tftp
 tftp-root=/tftp/boot
-pxe-service=0,"k3s Master Boot"
+pxe-service=0,"k3s PXE Boot"
 EOF
 
 # Enable rpcbind and NFS
@@ -97,7 +103,7 @@ sed -i -e "s/rpi-k3s-master/${HOSTN}/" /etc/hosts
 hostname "${HOSTN}"
 
 # Determine if this is supposed to be a master node (i.e. is a 4GB rpi4)
-# ...look, I know this is dumb, but I have three 4GB rpi4s for the control plane and 4 2GB rpi4s for workers.
+# ...look, I know this is dumb, but I have three 4GB rpi4s for the control plane and 4 8GB rpi4s for workers.
 # Expediency is winning over correctness for now. So sue me.
 SBC_MEM=$(free -m | grep Mem | awk '{ print $2 }')
 if (( SBC_MEM < 4000 )); then
