@@ -21,19 +21,19 @@ if (( EUID != 0 )); then
 fi
 
 # Install kernel NFS server, rsync
-apt install -y nfs-kernel-server rsync dnsmasq
+apt-get install -y nfs-kernel-server rsync dnsmasq
 
 # Create directory structure and copy FS
-mkdir -p /tftp/k3s/client
+mkdir -p /tftp/k3s/node
 mkdir /tftp/boot
-rsync -xa --exclude /tftp / /tftp/k3s/client
+rsync -xa --exclude /tftp / /tftp/k3s/node
 
 # Setup TFTP boot
 chmod 777 /tftp/boot
 cp -r /boot/* /tftp/boot
 
 # Setup NFS exports for boot, root FS
-echo "/tftp/k3s/client *(rw,sync,no_subtree_check,no_root_squash)" | tee -a /etc/exports
+echo "/tftp/k3s/node *(rw,sync,no_subtree_check,no_root_squash)" | tee -a /etc/exports
 echo "/tftp/boot *(rw,sync,no_subtree_check,no_root_squash)" | tee -a /etc/exports
 
 # Turn off DHCP for eth0
@@ -100,12 +100,12 @@ hostname "${HOSTN}"
 # ...look, I know this is dumb, but I have three 4GB rpi4s for the control plane and 4 2GB rpi4s for workers.
 # Expediency is winning over correctness for now. So sue me.
 SBC_MEM=$(free -m | grep Mem | awk '{ print $2 }')
-if (( SBC_MEM == 3956 )); then
-  # master
-  echo "I'm a big boy!" > /tmp/msg
+if (( SBC_MEM < 4000 )); then
+  # control node
+  echo "I'm the boss of you!" > /tmp/msg
 else
-  # worker
-  echo "I'm a little boy!" > /tmp/msg
+  # worker node
+  echo "You're not the boss of me!" > /tmp/msg
 fi
 EORC
 EOF
