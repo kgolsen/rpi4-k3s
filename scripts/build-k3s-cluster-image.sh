@@ -121,12 +121,7 @@ chmod 400 k3s-masterkey.pem
 chmod 700 /home/k3s/.ssh
 chown -R k3s:k3s /home/k3s/.ssh
 
-EOF
-
-# Still to do - network setup, explode rc.local, maybe allow reconfiguration of tzdata based on env vars, etc.
-
-# chroot to Raspbian, setup rc.local to install k3sup
-cat << EOF | chroot "${ROOT}" /usr/bin/qemu-arm-static /bin/bash
+# setup rc.local to install k3sup
 cat << EORC | tee /etc/rc.local &> /dev/null
 #!/bin/bash
 # update and upgrade everything (no effect if booted shortly after image creation)
@@ -134,9 +129,9 @@ apt-get update
 apt upgrade -y
 
 # pull k3sup installer and run
-wget -q --compression=auto https://get.k3sup.dev -O /usr/local/bin/install-k3sup.sh
+wget -q --compression=auto https://get.k3sup.dev -O /tmp/install-k3sup.sh
 chmod +x /usr/local/bin/*.sh
-/usr/local/bin/install-k3sup.sh && rm /usr/local/bin/install-k3sup.sh
+/tmp/install-k3sup.sh && rm /tmp/install-k3sup.sh
 
 # disable password auth for SSH
 sed -i -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
@@ -170,7 +165,7 @@ cp "${ROOT}/home/k3s/.ssh/k3s-masterkey.pub" /var/local/
 umount "${BOOT}"
 umount "${ROOT}"
 
-MIN_IMG_FILE="${IMG_FILE:0:-4}-shrunk.img"
+MIN_IMG_FILE="${IMG_FILE:0:-4}-min.img"
 wget https://raw.githubusercontent.com/Drewsif/PiShrink/master/pishrink.sh -O pishrink.sh
 /bin/bash pishrink.sh -p "${IMG_FILE}" "${MIN_IMG_FILE}"
 
