@@ -70,7 +70,7 @@ mount -v -o offset="$(echo "${parts[1]}"|awk '{print $1}')",sizelimit="$(echo "$
 git clone --depth 1 git://github.com/raspberrypi/firmware.git /tmp/firmware
 mv /tmp/firmware/boot/* "${BOOT}"
 touch "${BOOT}/ssh"
-CMDLINE=console="serial0,115200 console=tty1 root=PARTUUID=738a4d67-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet"
+CMDLINE="console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet"
 echo "${CMDLINE} cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory" | tee "${BOOT}/cmdline.txt"
 
 # Generate config.txt

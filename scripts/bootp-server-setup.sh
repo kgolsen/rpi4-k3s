@@ -43,7 +43,7 @@ echo "/tftp/k3s/node *(rw,sync,no_subtree_check,no_root_squash)" | tee -a /etc/e
 echo "/tftp/boot *(rw,sync,no_subtree_check,no_root_squash)" | tee -a /etc/exports
 
 # Turn off DHCP for eth0
-echo << EOF | tee /etc/network/interface
+cat << EOF | tee /etc/network/interface
 TODO: Fix, we're not using NetworkManager
 EOF
 
