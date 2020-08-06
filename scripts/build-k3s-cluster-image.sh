@@ -51,12 +51,15 @@ done
 mkdir -p /mnt/raspbian/{boot,root}
 
 # Create filesystems on image partitions
-LO=$(losetup -f --show -o "$(echo "${parts[0]}"|awk '{print $1}')" --size "$(echo "${parts[0]}"|awk '{print $2}')" "${IMG_FILE}")
-mkfs.vfat "${LO}"
-losetup -D
-LO=$(losetup -f --show -o "$(echo "${parts[1]}"|awk '{print $1}')" --size "$(echo "${parts[1]}"|awk '{print $2}')" "${IMG_FILE}")
-mkfs.ext4 "${LO}"
-losetup -D
+for i in 0 1; do
+  LO=$(losetup -f --show -o "$(echo "${parts[$i]}"|awk '{print $1}')" --size "$(echo "${parts[$i]}"|awk '{print $2}')" "${IMG_FILE}")
+  if (( i == 0 )); then
+    mkfs.vfat "${LO}"
+  else
+    mkfs.ext4 "${LO}"
+  fi
+  losetup -D
+done
 
 # Mount image partitions
 BOOT="/mnt/raspbian/boot"
@@ -166,7 +169,7 @@ umount "${BOOT}"
 umount "${ROOT}"
 
 MIN_IMG_FILE="${IMG_FILE:0:-4}-min.img"
-wget https://raw.githubusercontent.com/Drewsif/PiShrink/master/pishrink.sh -O pishrink.sh
+wget https://raw.githubusercontent.com/kgolsen/PiShrink/master/pishrink.sh -O pishrink.sh
 /bin/bash pishrink.sh -p "${IMG_FILE}" "${MIN_IMG_FILE}"
 
 # Copy raw and shrunk images to volume
